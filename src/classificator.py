@@ -57,7 +57,7 @@ set_seed(42)
 H = 256
 W = 256
 BATCH_SIZE = 32
-DATA_DIR = "./Flipkart/Sorted/"
+DATA_DIR = "./data/"
 NUM_EPOCHS = 20
 PATIENCE = 3
 
@@ -95,40 +95,90 @@ test_transform = transforms.Compose([
 ])
 
 # --- Chargement du dataset ---
-dataset = datasets.ImageFolder(
-    root=DATA_DIR,
-    transform=train_transform,
-    is_valid_file=lambda p: p.lower().endswith((".jpg", ".jpeg", ".png"))
-)
+# dataset = datasets.ImageFolder(
+#     root=DATA_DIR,
+#     transform=train_transform,
+#     is_valid_file=lambda p: p.lower().endswith((".jpg", ".jpeg", ".png"))
+# )
 
-NUM_CLASSES = len(dataset.classes)
-print("Catégories détectées :", dataset.classes)
+# NUM_CLASSES = len(dataset.classes)
+# print("Catégories détectées :", dataset.classes)
 
-# --- Split train/val/test ---
-total_len = len(dataset)
-train_size = int(0.6 * total_len)
-val_size = int(0.2 * total_len)
-test_size = total_len - train_size - val_size
+# # --- Split train/val/test ---
+# total_len = len(dataset)
+# train_size = int(0.6 * total_len)
+# val_size = int(0.2 * total_len)
+# test_size = total_len - train_size - val_size
 
-train_dataset, val_dataset, test_dataset = random_split(
-    dataset, [train_size, val_size, test_size]
-)
+# train_dataset, val_dataset, test_dataset = random_split(
+#     dataset, [train_size, val_size, test_size]
+# )
 
-val_dataset.dataset.transform = test_transform
-test_dataset.dataset.transform = test_transform
+# val_dataset.dataset.transform = test_transform
+# test_dataset.dataset.transform = test_transform
 
-train_loader = DataLoader(
-    train_dataset, batch_size=BATCH_SIZE, shuffle=True
-)
-val_loader = DataLoader(
-    val_dataset, batch_size=BATCH_SIZE, shuffle=False
-)
-test_loader = DataLoader(
-    test_dataset, batch_size=BATCH_SIZE, shuffle=False
-)
+# train_loader = DataLoader(
+#     train_dataset, batch_size=BATCH_SIZE, shuffle=True
+# )
+# val_loader = DataLoader(
+#     val_dataset, batch_size=BATCH_SIZE, shuffle=False
+# )
+# test_loader = DataLoader(
+#     test_dataset, batch_size=BATCH_SIZE, shuffle=False
+# )
 
-print(f"Train: {len(train_dataset)}, "
-      f"Val: {len(val_dataset)}, Test: {len(test_dataset)}")
+# print(f"Train: {len(train_dataset)}, "
+#       f"Val: {len(val_dataset)}, Test: {len(test_dataset)}")
+
+# Temporary placeholders
+dataset = None
+NUM_CLASSES = 0
+train_loader = None
+val_loader = None
+test_loader = None
+
+
+def load_datasets():
+    """
+    Load the datasets and create data loaders.
+    Call this function after ensuring the data directory has the proper structure.
+    """
+    global dataset, NUM_CLASSES, train_loader, val_loader, test_loader
+    
+    dataset = datasets.ImageFolder(
+        root=DATA_DIR,
+        transform=train_transform,
+        is_valid_file=lambda p: p.lower().endswith((".jpg", ".jpeg", ".png"))
+    )
+
+    NUM_CLASSES = len(dataset.classes)
+    print("Catégories détectées :", dataset.classes)
+
+    # --- Split train/val/test ---
+    total_len = len(dataset)
+    train_size = int(0.6 * total_len)
+    val_size = int(0.2 * total_len)
+    test_size = total_len - train_size - val_size
+
+    train_dataset, val_dataset, test_dataset = random_split(
+        dataset, [train_size, val_size, test_size]
+    )
+
+    val_dataset.dataset.transform = test_transform
+    test_dataset.dataset.transform = test_transform
+
+    train_loader = DataLoader(
+        train_dataset, batch_size=BATCH_SIZE, shuffle=True
+    )
+    val_loader = DataLoader(
+        val_dataset, batch_size=BATCH_SIZE, shuffle=False
+    )
+    test_loader = DataLoader(
+        test_dataset, batch_size=BATCH_SIZE, shuffle=False
+    )
+
+    print(f"Train: {len(train_dataset)}, "
+          f"Val: {len(val_dataset)}, Test: {len(test_dataset)}")
 
 
 # --- Modèle ResNet18 ---
@@ -157,28 +207,6 @@ def create_resnet18(num_classes):
         nn.Linear(in_features, num_classes)
     )
     return model
-
-
-# --- Device ---
-device = torch.device(
-    'cuda:0' if torch.cuda.is_available() else 'cpu'
-)
-print("Utilisation de l'appareil:", device)
-
-model = create_resnet18(NUM_CLASSES).to(device)
-
-criterion = nn.CrossEntropyLoss()
-
-optimizer = optim.Adam(
-    model.parameters(),
-    lr=1e-5,
-    weight_decay=1e-4
-)
-
-scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-    optimizer,
-    T_max=NUM_EPOCHS
-)
 
 
 # --- MixUp ---
@@ -219,126 +247,167 @@ def mixup_data(x, y, alpha=0.4):
     return mixed_x, y_a, y_b, lam
 
 
-# --- Suivi des métriques ---
-train_losses = []
-val_losses = []
-val_accuracies = []
+def train_model():
+    """
+    Load datasets, create model, and train it.
+    Returns
+    -------
+    torch.nn.Module
+        Trained model.
+    """
+    global device
+    load_datasets()
+    
+    # --- Device ---
+    device = torch.device(
+        'cuda:0' if torch.cuda.is_available() else 'cpu'
+    )
+    print("Utilisation de l'appareil:", device)
 
-best_val_loss = float("inf")
-best_val_acc = 0.0
-patience_counter = 0
+    model = create_resnet18(NUM_CLASSES).to(device)
 
+    criterion = nn.CrossEntropyLoss()
 
-# --- Boucle d'entraînement ---
-for epoch in range(NUM_EPOCHS):
-    model.train()
-    running_loss = 0.0
+    optimizer = optim.Adam(
+        model.parameters(),
+        lr=1e-5,
+        weight_decay=1e-4
+    )
 
-    for images, labels in train_loader:
-        images = images.to(device)
-        labels = labels.to(device)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+        optimizer,
+        T_max=NUM_EPOCHS
+    )
 
-        inputs, targets_a, targets_b, lam = mixup_data(
-            images, labels, alpha=0.4
-        )
+    # --- Suivi des métriques ---
+    train_losses = []
+    val_losses = []
+    val_accuracies = []
 
-        optimizer.zero_grad()
-        outputs = model(inputs)
+    best_val_loss = float("inf")
+    best_val_acc = 0.0
+    patience_counter = 0
 
-        loss = (
-            lam * criterion(outputs, targets_a)
-            + (1 - lam) * criterion(outputs, targets_b)
-        )
+    # --- Boucle d'entraînement ---
+    for epoch in range(NUM_EPOCHS):
+        model.train()
+        running_loss = 0.0
 
-        loss.backward()
-        optimizer.step()
-
-        running_loss += loss.item()
-
-    model.eval()
-    val_loss = 0.0
-    correct = 0
-    total = 0
-
-    with torch.no_grad():
-        for images, labels in val_loader:
+        for images, labels in train_loader:
             images = images.to(device)
             labels = labels.to(device)
 
-            outputs = model(images)
-            loss = criterion(outputs, labels)
-            val_loss += loss.item()
+            inputs, targets_a, targets_b, lam = mixup_data(
+                images, labels, alpha=0.4
+            )
 
-            _, predicted = torch.max(outputs, 1)
-            total += labels.size(0)
-            correct += (predicted == labels).sum().item()
+            optimizer.zero_grad()
+            outputs = model(inputs)
 
-    avg_train_loss = running_loss / len(train_loader)
-    avg_val_loss = val_loss / len(val_loader)
-    val_acc = correct / total
+            loss = (
+                lam * criterion(outputs, targets_a)
+                + (1 - lam) * criterion(outputs, targets_b)
+            )
 
-    train_losses.append(avg_train_loss)
-    val_losses.append(avg_val_loss)
-    val_accuracies.append(val_acc)
+            loss.backward()
+            optimizer.step()
 
-    print(
-        f"Epoch {epoch + 1}/{NUM_EPOCHS} — "
-        f"Train Loss: {avg_train_loss:.4f} | "
-        f"Val Loss: {avg_val_loss:.4f} | "
-        f"Val Acc: {val_acc:.4f}"
-    )
+            running_loss += loss.item()
 
-    if avg_val_loss < best_val_loss:
-        best_val_loss = avg_val_loss
-        best_val_acc = val_acc
-        patience_counter = 0
+        model.eval()
+        val_loss = 0.0
+        correct = 0
+        total = 0
 
-        torch.save(
-            model.state_dict(),
-            "best_model_resnet18_finetuned.pth"
+        with torch.no_grad():
+            for images, labels in val_loader:
+                images = images.to(device)
+                labels = labels.to(device)
+
+                outputs = model(images)
+                loss = criterion(outputs, labels)
+                val_loss += loss.item()
+
+                _, predicted = torch.max(outputs, 1)
+                total += labels.size(0)
+                correct += (predicted == labels).sum().item()
+
+        avg_train_loss = running_loss / len(train_loader)
+        avg_val_loss = val_loss / len(val_loader)
+        val_acc = correct / total
+
+        train_losses.append(avg_train_loss)
+        val_losses.append(avg_val_loss)
+        val_accuracies.append(val_acc)
+
+        print(
+            f"Epoch {epoch + 1}/{NUM_EPOCHS} — "
+            f"Train Loss: {avg_train_loss:.4f} | "
+            f"Val Loss: {avg_val_loss:.4f} | "
+            f"Val Acc: {val_acc:.4f}"
         )
-        print("→ Nouveau meilleur modèle sauvegardé")
-    else:
-        patience_counter += 1
-        print(f"Patience: {patience_counter}/{PATIENCE}")
 
-        if patience_counter >= PATIENCE:
-            print("Early stopping triggered.")
-            break
+        if avg_val_loss < best_val_loss:
+            best_val_loss = avg_val_loss
+            best_val_acc = val_acc
+            patience_counter = 0
 
-    scheduler.step()
+            torch.save(
+                model.state_dict(),
+                "best_model_resnet18_finetuned.pth"
+            )
+            print("→ Nouveau meilleur modèle sauvegardé")
+        else:
+            patience_counter += 1
+            print(f"Patience: {patience_counter}/{PATIENCE}")
 
-print("Entraînement terminé. Meilleure Val Acc:", best_val_acc)
+            if patience_counter >= PATIENCE:
+                print("Early stopping triggered.")
+                break
 
-# --- Graphiques Loss & Accuracy ---
-plt.figure(figsize=(8, 5))
-plt.plot(train_losses, label="Train Loss")
-plt.plot(val_losses, label="Validation Loss")
-plt.xlabel("Epoch")
-plt.ylabel("Loss")
-plt.title("Training & Validation Loss (ResNet18 full FT + MixUp)")
-plt.legend()
-plt.show()
+        scheduler.step()
 
-plt.figure(figsize=(8, 5))
-plt.plot(val_accuracies, label="Validation Accuracy")
-plt.xlabel("Epoch")
-plt.ylabel("Accuracy")
-plt.title("Validation Accuracy (ResNet18 full FT + MixUp)")
-plt.legend()
-plt.show()
+    print("Entraînement terminé. Meilleure Val Acc:", best_val_acc)
+
+    # --- Graphiques Loss & Accuracy ---
+    plt.figure(figsize=(8, 5))
+    plt.plot(train_losses, label="Train Loss")
+    plt.plot(val_losses, label="Validation Loss")
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
+    plt.title("Training & Validation Loss (ResNet18 full FT + MixUp)")
+    plt.legend()
+    plt.show()
+
+    plt.figure(figsize=(8, 5))
+    plt.plot(val_accuracies, label="Validation Accuracy")
+    plt.xlabel("Epoch")
+    plt.ylabel("Accuracy")
+    plt.title("Validation Accuracy (ResNet18 full FT + MixUp)")
+    plt.legend()
+    plt.show()
+
+    # --- Évaluation sur le test ---
+    model.load_state_dict(torch.load("best_model_resnet18_finetuned.pth"))
+    model.eval()
+
+    all_preds = []
+    all_labels = []
+    all_probs = []
+
+    return model
 
 
-# --- Évaluation sur le test ---
-model.load_state_dict(torch.load("best_model_resnet18_finetuned.pth"))
-model.eval()
+# --- Main execution ---
+device = torch.device(
+    'cuda:0' if torch.cuda.is_available() else 'cpu'
+)
+print("Utilisation de l'appareil:", device)
 
-all_preds = []
-all_labels = []
-all_probs = []
+model = train_model()
 
 
-def evaluate_model(model, loader):
+def evaluate_model(model, loader, device_):
     """
     Runs inference on a dataloader and collects predictions, labels and probabilities.
 
@@ -348,6 +417,8 @@ def evaluate_model(model, loader):
         Trained model.
     loader : DataLoader
         Test or validation dataloader.
+    device_ : torch.device
+        Device to run inference on.
 
     Returns
     -------
@@ -364,8 +435,8 @@ def evaluate_model(model, loader):
 
     with torch.no_grad():
         for images, y in loader:
-            images = images.to(device)
-            y = y.to(device)
+            images = images.to(device_)
+            y = y.to(device_)
 
             outputs = model(images)
             p = torch.softmax(outputs, dim=1)
@@ -383,7 +454,7 @@ def evaluate_model(model, loader):
     )
 
 
-all_preds, all_labels, all_probs = evaluate_model(model, test_loader)
+all_preds, all_labels, all_probs = evaluate_model(model, test_loader, device)
 
 # --- Rapport de classification ---
 print(classification_report(all_labels, all_preds, target_names=dataset.classes))
