@@ -57,7 +57,7 @@ set_seed(42)
 H = 256
 W = 256
 BATCH_SIZE = 32
-DATA_DIR = "./data/"
+DATA_DIR = "./data/processed/raw/images"
 NUM_EPOCHS = 20
 PATIENCE = 3
 
@@ -95,40 +95,40 @@ test_transform = transforms.Compose([
 ])
 
 # --- Chargement du dataset ---
-# dataset = datasets.ImageFolder(
-#     root=DATA_DIR,
-#     transform=train_transform,
-#     is_valid_file=lambda p: p.lower().endswith((".jpg", ".jpeg", ".png"))
-# )
+dataset = datasets.ImageFolder(
+     root=DATA_DIR,
+     transform=train_transform,
+     is_valid_file=lambda p: p.lower().endswith((".jpg", ".jpeg", ".png"))
+ )
 
-# NUM_CLASSES = len(dataset.classes)
-# print("Catégories détectées :", dataset.classes)
+NUM_CLASSES = len(dataset.classes)
+print("Catégories détectées :", dataset.classes)
 
 # # --- Split train/val/test ---
-# total_len = len(dataset)
-# train_size = int(0.6 * total_len)
-# val_size = int(0.2 * total_len)
-# test_size = total_len - train_size - val_size
+total_len = len(dataset)
+train_size = int(0.6 * total_len)
+val_size = int(0.2 * total_len)
+test_size = total_len - train_size - val_size
 
-# train_dataset, val_dataset, test_dataset = random_split(
-#     dataset, [train_size, val_size, test_size]
-# )
+train_dataset, val_dataset, test_dataset = random_split(
+     dataset, [train_size, val_size, test_size]
+ )
 
-# val_dataset.dataset.transform = test_transform
-# test_dataset.dataset.transform = test_transform
+val_dataset.dataset.transform = test_transform
+test_dataset.dataset.transform = test_transform
 
-# train_loader = DataLoader(
-#     train_dataset, batch_size=BATCH_SIZE, shuffle=True
-# )
-# val_loader = DataLoader(
-#     val_dataset, batch_size=BATCH_SIZE, shuffle=False
-# )
-# test_loader = DataLoader(
-#     test_dataset, batch_size=BATCH_SIZE, shuffle=False
-# )
+train_loader = DataLoader(
+     train_dataset, batch_size=BATCH_SIZE, shuffle=True
+ )
+val_loader = DataLoader(
+     val_dataset, batch_size=BATCH_SIZE, shuffle=False
+ )
+test_loader = DataLoader(
+     test_dataset, batch_size=BATCH_SIZE, shuffle=False
+ )
 
-# print(f"Train: {len(train_dataset)}, "
-#       f"Val: {len(val_dataset)}, Test: {len(test_dataset)}")
+print(f"Train: {len(train_dataset)}, "
+       f"Val: {len(val_dataset)}, Test: {len(test_dataset)}")
 
 # Temporary placeholders
 dataset = None
@@ -557,13 +557,19 @@ def plot_roc_curves(labels, probs, classes):
     classes : list of str
         Class names.
     """
-    y_bin = label_binarize(labels, classes=list(range(len(classes))))
-
-    plt.figure(figsize=(10, 8))
-    for i, cls in enumerate(classes):
-        fpr, tpr, _ = roc_curve(y_bin[:, i], probs[:, i])
+    if len(classes) == 2:
+        # Cas Binaire (2 classes)
+        # La classe positive est la classe à l'index 1 ('sugar')
+        fpr, tpr, _ = roc_curve(labels, probs[:, 1])
         roc_auc = auc(fpr, tpr)
-        plt.plot(fpr, tpr, label=f"{cls} (AUC={roc_auc:.2f})")
+        plt.plot(fpr, tpr, label=f"{classes[1]} vs {classes[0]} (AUC={roc_auc:.2f})")
+    else:
+        # Cas Multi-classes (3 classes ou plus)
+        y_bin = label_binarize(labels, classes=list(range(len(classes))))
+        for i, cls in enumerate(classes):
+            fpr, tpr, _ = roc_curve(y_bin[:, i], probs[:, i])
+            roc_auc = auc(fpr, tpr)
+            plt.plot(fpr, tpr, label=f"{cls} (AUC={roc_auc:.2f})")
 
     plt.plot([0, 1], [0, 1], "k--")
     plt.xlabel("False Positive Rate")
@@ -696,7 +702,9 @@ labels_list = np.array(labels_list)
 
 
 # --- t-SNE ---
-tsne = TSNE(n_components=2, perplexity=30, learning_rate=200)
+n_samples=len(embeddings)
+
+tsne = TSNE(n_components=2, perplexity=min(30, n_samples - 1), learning_rate=200)
 tsne_emb = tsne.fit_transform(embeddings)
 
 plt.figure(figsize=(8, 6))
