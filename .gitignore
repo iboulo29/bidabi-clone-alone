@@ -210,7 +210,7 @@ __marimo__/
 __pycache__/
 *.pyc
 data/raw/
-data /raw/ images /
-!data /raw .dvc
-data / localstore /
+data/raw/images/
+!data/raw.dvc
+data/localstore/
 data/interim/
