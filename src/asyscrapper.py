@@ -10,7 +10,7 @@ HEADERS = {"User-Agent": "MyAwesomeApp/1.0"}
 
 OUTPUT_DIR = "data"
 
-CATEGORY = "sugar" #"bread", "milk", "champagnes", "butter" 
+CATEGORIES = ("sugar", "bread", "milk", "champagnes", "butter")
 TARGET_COUNT = 180
 PAGE_SIZE = 100
 MAX_PAGES = 50
@@ -155,10 +155,17 @@ def save_to_csv(filename, rows):
 # Entry point
 # -------------------------
 def main():
-    products = asyncio.run(scrape(CATEGORY, TARGET_COUNT, PAGE_SIZE, MAX_PAGES))
-    output_file = f"data/raw/metadata_{CATEGORY}_{TARGET_COUNT}.csv"
-    save_to_csv(output_file, products)
-    print(f"✔ Fichier {output_file} créé. Produits valides collectés : {len(products)}")
+    for category in CATEGORIES:
+        print(f"\n=== Démarrage de la collecte pour la catégorie : {category.upper()} ===")
+        
+        # On lance le scraping asynchrone pour la catégorie en cours
+        products = asyncio.run(scrape(category, TARGET_COUNT, PAGE_SIZE, MAX_PAGES))
+        
+        # On sauvegarde dans un fichier spécifique à cette catégorie
+        output_file = f"data/raw/metadata_{category}_{TARGET_COUNT}.csv"
+        save_to_csv(output_file, products)
+        
+        print(f"✔ Fichier {output_file} créé. Produits valides collectés : {len(products)}")
 
 if __name__ == "__main__":
     main()

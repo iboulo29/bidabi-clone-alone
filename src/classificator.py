@@ -57,7 +57,7 @@ set_seed(42)
 H = 256
 W = 256
 BATCH_SIZE = 32
-DATA_DIR = "./data/processed/raw/images"
+DATA_DIR = "./data/raw/images"
 NUM_EPOCHS = 20
 PATIENCE = 3
 
@@ -378,6 +378,7 @@ def train_model():
     plt.title("Training & Validation Loss (ResNet18 full FT + MixUp)")
     plt.legend()
     plt.show()
+    plt.savefig("C:/Users/Dell/Documents/ibou/USPN_BIDABI1/semestre 2/big_data/atelier _3/bidabi-clone-alone/data/graph/loss_curve_resnet18_finetuned.png")
 
     plt.figure(figsize=(8, 5))
     plt.plot(val_accuracies, label="Validation Accuracy")
@@ -386,6 +387,7 @@ def train_model():
     plt.title("Validation Accuracy (ResNet18 full FT + MixUp)")
     plt.legend()
     plt.show()
+    plt.savefig("C:/Users/Dell/Documents/ibou/USPN_BIDABI1/semestre 2/big_data/atelier _3/bidabi-clone-alone/data/graph/accuracy_curve_resnet18_finetuned.png") 
 
     # --- Évaluation sur le test ---
     model.load_state_dict(torch.load("best_model_resnet18_finetuned.pth"))
@@ -485,6 +487,7 @@ def plot_confusion_matrix(cm, classes):
     plt.ylabel("True")
     plt.title("Confusion Matrix (ResNet18 full FT + MixUp)")
     plt.show()
+    plt.savefig("C:/Users/Dell/Documents/ibou/USPN_BIDABI1/semestre 2/big_data/atelier _3/bidabi-clone-alone/data/graph/confusion_matrix_resnet18_finetuned.png")
 
 
 cm = confusion_matrix(all_labels, all_preds)
@@ -541,6 +544,7 @@ plt.ylabel("Accuracy")
 plt.title("Per-class Accuracy (ResNet18 full FT + MixUp)")
 plt.xticks(rotation=45)
 plt.show()
+plt.savefig("C:/Users/Dell/Documents/ibou/USPN_BIDABI1/semestre 2/big_data/atelier _3/bidabi-clone-alone/data/graph/per_class_accuracy_resnet18_finetuned.png")
 
 
 # --- ROC curves (One-vs-Rest) ---
@@ -577,6 +581,7 @@ def plot_roc_curves(labels, probs, classes):
     plt.title("ROC Curves (ResNet18 full FT + MixUp)")
     plt.legend()
     plt.show()
+    plt.savefig("C:/Users/Dell/Documents/ibou/USPN_BIDABI1/semestre 2/big_data/atelier _3/bidabi-clone-alone/data/graph/roc_curves_resnet18_finetuned.png")
 
 
 plot_roc_curves(all_labels, all_probs, dataset.classes)
@@ -649,7 +654,7 @@ def compute_hardest_samples(model, loader, classes, top_k=12):
 
     plt.suptitle("Top Hardest Samples (Highest Loss)")
     plt.show()
-
+    plt.savefig("C:/Users/Dell/Documents/ibou/USPN_BIDABI1/semestre 2/big_data/atelier _3/bidabi-clone-alone/data/graph/hardest_samples_resnet18_finetuned.png")
 
 compute_hardest_samples(model, test_loader, dataset.classes)
 
@@ -715,6 +720,7 @@ for i, cls in enumerate(dataset.classes):
 plt.legend()
 plt.title("t-SNE Embedding Visualization")
 plt.show()
+plt.savefig("C:/Users/Dell/Documents/ibou/USPN_BIDABI1/semestre 2/big_data/atelier _3/bidabi-clone-alone/data/graph/tsne_embedding_resnet18_finetuned.png")
 
 
 # --- UMAP ---
@@ -730,3 +736,4 @@ if umap_available:
     plt.legend()
     plt.title("UMAP Embedding Visualization")
     plt.show()
+    plt.savefig("C:/Users/Dell/Documents/ibou/USPN_BIDABI1/semestre 2/big_data/atelier _3/bidabi-clone-alone/data/graph/umap_embedding_resnet18_finetuned.png")
